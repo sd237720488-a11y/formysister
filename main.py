@@ -7,6 +7,8 @@ from openai import OpenAI
 # 环境变量获取
 # 自动清洗 Webhook 地址，防止因为复制粘贴带入的引号或空格导致 URL 报错
 FEISHU_WEBHOOK = os.getenv("FEISHU_WEBHOOK", "").strip().strip('"').strip("'")
+
+# 尝试从多个可能的变量名获取 Key
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY")
 
 # 初始化 DeepSeek 客户端 (使用 OpenAI 兼容 SDK)
@@ -88,14 +90,19 @@ def send_to_feishu(title, content, color="orange"):
             print(f"成功推送至飞书: {title}")
     except requests.exceptions.HTTPError as err:
         print(f"HTTP 请求错误: {err}")
+  # Use generic error catch for other issues
     except Exception as e:
         print(f"推送过程发生意外错误: {str(e)}")
 
 if __name__ == "__main__":
+    # 调试信息：打印环境变量是否存在（不打印具体值，保护隐私）
+    print(f"Debug: FEISHU_WEBHOOK 存在: {bool(FEISHU_WEBHOOK)}")
+    print(f"Debug: DEEPSEEK_API_KEY 存在: {bool(DEEPSEEK_API_KEY)}")
+
     if not FEISHU_WEBHOOK:
-        print("Error: 环境变量 FEISHU_WEBHOOK 为空，请检查 GitHub Secrets。")
+        print("Error: 环境变量 FEISHU_WEBHOOK 为空，请检查 GitHub Secrets 和 YAML 配置。")
     elif not DEEPSEEK_API_KEY:
-        print("Error: 环境变量 DEEPSEEK_API_KEY 为空，请检查 GitHub Secrets。")
+        print("Error: 环境变量 DEEPSEEK_API_KEY 为空，请检查 GitHub Secrets 和 YAML 配置。")
     else:
         info = get_today_info()
         
@@ -103,7 +110,7 @@ if __name__ == "__main__":
         - 八字: 壬申 戊申 壬午 壬寅
         - 格局: 身强比劫旺，枭神夺食（寅申冲），寅午半合火局。
         - 喜用: 木 (食伤)、火 (财)、燥土 (官杀)。
-        - 忌神: 金 (印)、水 (比劫)、湿土 (晦火)。
+        - 忌神: 金 (印)、水 (比劫) 、湿土 (晦火)。
         """
         
         queen_profile = """
