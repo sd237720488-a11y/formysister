@@ -1,0 +1,31 @@
+name: Daily Fortune Bot
+
+on:
+  schedule:
+    # 这里的 Cron 表达式是 UTC 时间。
+    # 北京时间 21:00 = UTC 时间 13:00
+    - cron: '0 13 * * *'
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install sxtwl requests openai
+
+      - name: Run script
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+        run: python fortune_bot.py
