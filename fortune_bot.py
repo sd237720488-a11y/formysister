@@ -1,99 +1,115 @@
-import sxtwl
+import os
 import requests
-import datetime
 import json
 from openai import OpenAI
 
-# 配置信息
-FEISHU_WEBHOOK = "https://open.feishu.cn/open-apis/bot/v2/hook/4738fb14-a6b1-4391-a05c-2507ef5a46ff"
+# --- Configuration ---
+# 飞书机器人 Webhook 地址
+FEISHU_WEBHOOK_URL = os.environ.get("FEISHU_WEBHOOK_URL", "https://open.feishu.cn/open-apis/bot/v2/hook/4738fb14-a6b1-4391-a05c-2507ef5a46ff")
+# OpenAI 客户端会自动从环境中读取 OPENAI_API_KEY
 client = OpenAI()
 
-GAN = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"]
-ZHI = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
-
-def get_today_info():
-    now = datetime.datetime.now()
-    day = sxtwl.fromSolar(now.year, now.month, now.day)
-    gz_day_idx = day.getDayGZ()
-    return {
-        "date": now.strftime("%Y-%m-%d"),
-        "gz_day": GAN[gz_day_idx.tg] + ZHI[gz_day_idx.dz],
-        "tg": GAN[gz_day_idx.tg],
-        "dz": ZHI[gz_day_idx.dz]
-    }
-
-def get_ai_fortune(name, profile, target_info):
-    prompt = f"""
-你是一位精通八字命理与心理疗愈的高维导航员。
-请根据以下用户命盘和目标日期的干支，生成一份【{name}专属·每日能量指南】。
-
-用户命盘 ({name}):
-{profile}
-
-目标日期: {target_info['date']} ({target_info['gz_day']}日)
-
-要求:
-1. 风格: 极简、通透、有共情力。文字要精炼，排版要疏朗，不要大段文字，多用短句和换行。
-2. 格式: 
-   - 📅 **今天是 {target_info['date']} · {target_info['gz_day']} 日**
-   - **总评：这是一个 [核心基调] 的日子。**
-   - ---
-   - **🔮 能量天气预报：**
-     (用2-3句优美的短句描述核心感受，并点出今日干支对命盘的关键影响)
-   - **🚫 禁忌清单 (别做！)：**
-     (给出2条精炼的避坑建议)
-   - **✅ 转运清单 (去做！)：**
-     (1) [具体行动建议]
-     (2) **今日穿搭建议**：[幸运色] + [风格建议] (原理：结合五行喜忌)
-   - **💌 悄悄话：**
-     (一句简短有力的鼓励)
-
-注意: 
-- 严禁使用 ### 标题，必须使用 **粗体文字** 作为标题。
-- 文字要少而精，让用户一眼看清，不要有阅读压力。
-- 总评必须放在最上面。
-"""
+def generate_fortune_guide():
+    """使用 LLM 生成每日能量指南内容。"""
+    print("正在生成每日能量指南内容...")
     
-    response = client.chat.completions.create(
-        model="gpt-4.1-mini",
-        messages=[{"role": "system", "content": "你是一位精通命理的专业导师。"},
-                  {"role": "user", "content": prompt}]
+    # 系统提示词，定义 AI 的角色和输出格式要求
+    system_prompt = (
+        "你是一位专业的命理分析师，现在需要为用户生成一份'妹妹专属·每日能量指南'。 "
+        "请严格按照以下要求生成内容，并使用 Markdown 格式返回，以便于飞书展示。 "
+        "报告标题必须是 '妹妹专属·每日能量指南'。"
     )
-    return response.choices[0].message.content
+    
+    # 用户提示词，包含具体的内容要求和假设的“命盘”信息
+    user_prompt = (
+        f"请生成今天的每日能量指南。今天的日期是 {os.popen('date +%Y年%m月%d日').read().strip()}。"
+        "请提供今日的整体运势分析，并基于'命盘'深度分析：用户今日需要关注人际关系和情绪稳定。 "
+        "内容必须包含以下两个部分：\n"
+        "1. **🚫 禁忌清单 (别做！)**：提供今日应避免的行为，至少3条。\n"
+        "2. **✅ 转运清单 (去做！)**：提供今日应采取的积极行动，至少3条。"
+    )
 
-def send_to_feishu(title, content, color="orange"):
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.7
+        )
+        content = response.choices[0].message.content
+        print("内容生成成功。")
+        return content
+    except Exception as e:
+        print(f"内容生成失败: {e}")
+        return None
+
+def send_to_feishu(content):
+    """将生成的 Markdown 内容通过飞书 Webhook 推送。"""
+    if not FEISHU_WEBHOOK_URL or "YOUR_FEISHU_WEBHOOK_URL" in FEISHU_WEBHOOK_URL:
+        print("错误：飞书 Webhook URL 未配置。")
+        return False
+
+    if not content:
+        print("错误：内容为空，无法发送。")
+        return False
+
+    # 飞书机器人的 'post' 消息类型支持富文本
     payload = {
-        "msg_type": "interactive",
-        "card": {
-            "header": {
-                "title": {"tag": "plain_text", "content": title},
-                "template": color
-            },
-            "elements": [{"tag": "markdown", "content": content}]
+        "msg_type": "post",
+        "content": {
+            "post": {
+                "zh_cn": {
+                    "title": "妹妹专属·每日能量指南",
+                    "content": [
+                        [
+                            {
+                                "tag": "text",
+                                "text": content
+                            }
+                        ]
+                    ]
+                }
+            }
         }
     }
-    requests.post(FEISHU_WEBHOOK, json=payload)
+
+    print(f"正在发送消息到飞书 Webhook...")
+    try:
+        headers = {'Content-Type': 'application/json'}
+        response = requests.post(FEISHU_WEBHOOK_URL, headers=headers, data=json.dumps(payload))
+        
+        if response.status_code == 200:
+            result = response.json()
+            if result.get("code") == 0:
+                print("消息发送成功！")
+                return True
+            else:
+                print(f"飞书 API 返回错误: {result.get('msg')}")
+                return False
+        else:
+            print(f"HTTP 请求失败，状态码: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"发送请求时发生异常: {e}")
+        return False
+
+def main():
+    """主函数，执行生成和推送流程。"""
+    guide_content = generate_fortune_guide()
+    if guide_content:
+        print("\n--- 生成的指南内容 ---\n")
+        print(guide_content)
+        print("\n----------------------\n")
+        
+        success = send_to_feishu(guide_content)
+        if success:
+            print("任务执行完毕：每日能量指南已成功推送到飞书。")
+        else:
+            print("任务执行失败：请检查 Webhook URL 和网络连接。")
+    else:
+        print("任务执行失败：未能生成指南内容。")
 
 if __name__ == "__main__":
-    info = get_today_info()
-    
-    sister_profile = """
-    - 八字: 壬申 戊申 壬午 壬寅
-    - 格局: 身强比劫旺，枭神夺食（寅申冲），寅午半合火局。
-    - 喜用: 木 (食伤)、火 (财)、燥土 (官杀)。
-    - 忌神: 金 (印)、水 (比劫)、湿土 (晦火)。
-    """
-    
-    queen_profile = """
-    - 核心动力: 寅午戌三合火局（创造力、激情、从财格）。
-    - 灵魂暗礁: 丑戌刑 + 庚金偏印（原生家庭牵绊、内耗焦虑、完美主义）。
-    - 才华通道: 壬寅日柱（自坐食神/文昌/驿马，表达欲、灵性直觉）。
-    """
-    
-    sister_content = get_ai_fortune("姐姐", sister_profile, info)
-    send_to_feishu("🌟 姐姐专属·每日能量指南 (今日验证)", sister_content, "orange")
-    
-    queen_content = get_ai_fortune("妹妹", queen_profile, info)
-    send_to_feishu("👑 妹妹专属·每日能量指南 (今日验证)", queen_content, "purple")
-    
-    print(f"Today's AI Fortune sent for verification.")
+    main()
