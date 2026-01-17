@@ -5,7 +5,7 @@ import os
 from openai import OpenAI
 
 # 环境变量获取
-# 自动去除可能存在的首尾空格或多余引号
+# 自动清洗 Webhook 地址，防止因为复制粘贴带入的引号或空格导致 URL 报错
 FEISHU_WEBHOOK = os.getenv("FEISHU_WEBHOOK", "").strip().strip('"').strip("'")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY")
 
@@ -19,7 +19,7 @@ GAN = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"]
 ZHI = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
 
 def get_today_info():
-    # 修正：GitHub Actions 运行在 UTC 时间，需转换为北京时间 (UTC+8)
+    # GitHub Actions 运行在 UTC 时间，需转换为北京时间 (UTC+8)
     now = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
     day = sxtwl.fromSolar(now.year, now.month, now.day)
     gz_day_idx = day.getDayGZ()
@@ -63,8 +63,9 @@ def get_ai_fortune(name, profile, target_info):
         return f"AI 生成失败: {str(e)}"
 
 def send_to_feishu(title, content, color="orange"):
+    # 再次检查 URL 是否合法
     if not FEISHU_WEBHOOK.startswith("http"):
-        print(f"Error: 飞书 Webhook 地址格式不正确: {FEISHU_WEBHOOK}")
+        print(f"Error: 飞书 Webhook 地址格式不合法。请检查 GitHub Secrets 配置。当前值: {FEISHU_WEBHOOK}")
         return
 
     payload = {
@@ -78,19 +79,23 @@ def send_to_feishu(title, content, color="orange"):
         }
     }
     try:
-        res = requests.post(FEISHU_WEBHOOK, json=payload, timeout=10)
+        res = requests.post(FEISHU_WEBHOOK, json=payload, timeout=15)
         res.raise_for_status()
         result = res.json()
         if result.get("code") != 0:
-            print(f"飞书返回错误: {result.get('msg')}")
+            print(f"飞书平台返回错误: {result.get('msg')} (错误码: {result.get('code')})")
         else:
-            print(f"已成功推送至飞书: {title}")
+            print(f"成功推送至飞书: {title}")
+    except requests.exceptions.HTTPError as err:
+        print(f"HTTP 请求错误: {err}")
     except Exception as e:
-        print(f"推送飞书失败: {str(e)}")
+        print(f"推送过程发生意外错误: {str(e)}")
 
 if __name__ == "__main__":
-    if not FEISHU_WEBHOOK or not DEEPSEEK_API_KEY:
-        print("Error: Missing Environment Variables (FEISHU_WEBHOOK or DEEPSEEK_API_KEY)")
+    if not FEISHU_WEBHOOK:
+        print("Error: 环境变量 FEISHU_WEBHOOK 为空，请检查 GitHub Secrets。")
+    elif not DEEPSEEK_API_KEY:
+        print("Error: 环境变量 DEEPSEEK_API_KEY 为空，请检查 GitHub Secrets。")
     else:
         info = get_today_info()
         
@@ -107,8 +112,15 @@ if __name__ == "__main__":
         - 才华通道: 壬寅日柱（自坐食神/文昌/驿马，表达欲、灵性直觉）。
         """
         
-        for person in [("姐姐", sister_profile, "orange"), ("妹妹", queen_profile, "purple")]:
-            content = get_ai_fortune(person[0], person[1], info)
-            send_to_feishu(f"🌟 {person[0]}专属·每日能量指南", content, person[2])
+        # 批量获取并推送
+        targets = [
+            ("姐姐", sister_profile, "orange"),
+            ("妹妹", queen_profile, "purple")
+        ]
         
-        print(f"Daily Push Task Completed: {info['date']}")
+        for name, profile, color in targets:
+            print(f"正在为 {name} 生成指南...")
+            content = get_ai_fortune(name, profile, info)
+            send_to_feishu(f"🌟 {name}专属·每日能量指南", content, color)
+        
+        print(f"所有推送任务已尝试执行完毕: {info['date']}")
