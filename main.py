@@ -20,35 +20,38 @@ client = OpenAI(
 GAN = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"]
 ZHI = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
 
-def get_today_info():
+def get_tomorrow_info():
     # GitHub Actions 运行在 UTC 时间，需转换为北京时间 (UTC+8)
+    # 然后再增加 1 天，获取明天的信息
     now = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
-    day = sxtwl.fromSolar(now.year, now.month, now.day)
+    tomorrow = now + datetime.timedelta(days=1)
+    
+    day = sxtwl.fromSolar(tomorrow.year, tomorrow.month, tomorrow.day)
     gz_day_idx = day.getDayGZ()
     return {
-        "date": now.strftime("%Y-%m-%d"),
+        "date": tomorrow.strftime("%Y-%m-%d"),
         "gz_day": GAN[gz_day_idx.tg] + ZHI[gz_day_idx.dz],
         "tg": GAN[gz_day_idx.tg],
         "dz": ZHI[gz_day_idx.dz]
     }
 
 def get_ai_fortune(name, profile, target_info):
-    prompt = f"""你是一位精通八字命理与心理疗愈的高维导航员。请根据以下用户命盘和目标日期的干支，生成一份【{name}专属·每日能量指南】。
+    prompt = f"""你是一位精通八字命理与心理疗愈的高维导航员。请根据以下用户命盘和目标日期的干支，生成一份【{name}专属·明日能量指南】。
 用户命盘 ({name}):{profile}
 目标日期: {target_info['date']} ({target_info['gz_day']}日)
 要求:
 1. 风格: 极简、通透、有共情力。文字要精炼，排版要疏朗，不要大段文字，多用短句和换行。
 2. 格式:
-    - 📅 **今天是 {target_info['date']} · {target_info['gz_day']} 日**
+    - 📅 **明天是 {target_info['date']} · {target_info['gz_day']} 日**
     - **总评：这是一个 [核心基调] 的日子。**
     - ---
     - **🔮 能量天气预报：**
-    (用2-3句优美的短句描述核心感受，并点出今日干支对命盘的关键影响)
+    (用2-3句优美的短句描述核心感受，并点出明日干支对命盘的关键影响)
     - **🚫 禁忌清单 (别做！)：**
     (给出2条精炼的避坑建议)
     - **✅ 转运清单 (去做！)：**
     (1) [具体行动建议]
-    (2) **今日穿搭建议**：[幸运色] + [风格建议] (原理：结合五行喜忌)
+    (2) **明日穿搭建议**：[幸运色] + [风格建议] (原理：结合五行喜忌)
     - **💌 悄悄话：**
     (一句简短有力的鼓励)
 注意: 严禁使用 ### 标题，必须使用 **粗体文字** 作为标题。文字少而精，总评放在最上面。"""
@@ -90,12 +93,11 @@ def send_to_feishu(title, content, color="orange"):
             print(f"成功推送至飞书: {title}")
     except requests.exceptions.HTTPError as err:
         print(f"HTTP 请求错误: {err}")
-  # Use generic error catch for other issues
     except Exception as e:
         print(f"推送过程发生意外错误: {str(e)}")
 
 if __name__ == "__main__":
-    # 调试信息：打印环境变量是否存在（不打印具体值，保护隐私）
+    # 调试信息
     print(f"Debug: FEISHU_WEBHOOK 存在: {bool(FEISHU_WEBHOOK)}")
     print(f"Debug: DEEPSEEK_API_KEY 存在: {bool(DEEPSEEK_API_KEY)}")
 
@@ -104,7 +106,7 @@ if __name__ == "__main__":
     elif not DEEPSEEK_API_KEY:
         print("Error: 环境变量 DEEPSEEK_API_KEY 为空，请检查 GitHub Secrets 和 YAML 配置。")
     else:
-        info = get_today_info()
+        info = get_tomorrow_info()
         
         sister_profile = """
         - 八字: 壬申 戊申 壬午 壬寅
@@ -126,8 +128,8 @@ if __name__ == "__main__":
         ]
         
         for name, profile, color in targets:
-            print(f"正在为 {name} 生成指南...")
+            print(f"正在为 {name} 生成明日指南...")
             content = get_ai_fortune(name, profile, info)
-            send_to_feishu(f"🌟 {name}专属·每日能量指南", content, color)
+            send_to_feishu(f"🌟 {name}专属·明日能量指南", content, color)
         
-        print(f"所有推送任务已尝试执行完毕: {info['date']}")
+        print(f"所有推送任务已尝试执行完毕: 明日日期 {info['date']}")
