@@ -4,17 +4,22 @@ import datetime
 import os
 from openai import OpenAI
 
-# 从环境变量获取敏感信息（安全做法）
+# 环境变量获取
 FEISHU_WEBHOOK = os.getenv("FEISHU_WEBHOOK")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# 建议在 GitHub Secrets 中统一命名，或者将下方变量名改为你设置的名字
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY")
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+# 初始化 DeepSeek 客户端 (使用 OpenAI 兼容 SDK)
+client = OpenAI(
+    api_key=DEEPSEEK_API_KEY,
+    base_url="https://api.deepseek.com" # 指定 DeepSeek 的服务器地址
+)
 
 GAN = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"]
 ZHI = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
 
 def get_today_info():
-    # 修正：GitHub Actions 运行在 UTC 时间，需要转换为北京时间 (UTC+8)
+    # 修正：GitHub Actions 运行在 UTC 时间，需转换为北京时间 (UTC+8)
     now = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
     day = sxtwl.fromSolar(now.year, now.month, now.day)
     gz_day_idx = day.getDayGZ()
@@ -47,9 +52,9 @@ def get_ai_fortune(name, profile, target_info):
 注意: 严禁使用 ### 标题，必须使用 **粗体文字** 作为标题。文字少而精，总评放在最上面。"""
     
     try:
-        # 注意：原脚本中的 gpt-4.1-mini 如果报错，请改回 gpt-4o-mini 或 gpt-3.5-turbo
+        # 使用 deepseek-chat 模型
         response = client.chat.completions.create(
-            model="gpt-4o-mini", 
+            model="deepseek-chat", 
             messages=[{"role": "system", "content": "你是一位精通命理的专业导师。"},
                       {"role": "user", "content": prompt}]
         )
@@ -71,8 +76,8 @@ def send_to_feishu(title, content, color="orange"):
     requests.post(FEISHU_WEBHOOK, json=payload)
 
 if __name__ == "__main__":
-    if not FEISHU_WEBHOOK or not OPENAI_API_KEY:
-        print("Error: Missing Environment Variables")
+    if not FEISHU_WEBHOOK or not DEEPSEEK_API_KEY:
+        print("Error: Missing Environment Variables (FEISHU_WEBHOOK or DEEPSEEK_API_KEY)")
     else:
         info = get_today_info()
         
@@ -89,9 +94,8 @@ if __name__ == "__main__":
         - 才华通道: 壬寅日柱（自坐食神/文昌/驿马，表达欲、灵性直觉）。
         """
         
-        # 依次获取并推送
         for person in [("姐姐", sister_profile, "orange"), ("妹妹", queen_profile, "purple")]:
             content = get_ai_fortune(person[0], person[1], info)
             send_to_feishu(f"🌟 {person[0]}专属·每日能量指南", content, person[2])
         
-        print(f"Daily Push Completed: {info['date']}")
+        print(f"Daily Push Completed via DeepSeek: {info['date']}")
