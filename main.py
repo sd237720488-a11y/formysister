@@ -5,8 +5,8 @@ import os
 from openai import OpenAI
 
 # 环境变量获取
-FEISHU_WEBHOOK = os.getenv("FEISHU_WEBHOOK")
-# 建议在 GitHub Secrets 中统一命名，或者将下方变量名改为你设置的名字
+# 自动去除可能存在的首尾空格或多余引号
+FEISHU_WEBHOOK = os.getenv("FEISHU_WEBHOOK", "").strip().strip('"').strip("'")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY")
 
 # 初始化 DeepSeek 客户端 (使用 OpenAI 兼容 SDK)
@@ -63,6 +63,10 @@ def get_ai_fortune(name, profile, target_info):
         return f"AI 生成失败: {str(e)}"
 
 def send_to_feishu(title, content, color="orange"):
+    if not FEISHU_WEBHOOK.startswith("http"):
+        print(f"Error: 飞书 Webhook 地址格式不正确: {FEISHU_WEBHOOK}")
+        return
+
     payload = {
         "msg_type": "interactive",
         "card": {
@@ -73,7 +77,16 @@ def send_to_feishu(title, content, color="orange"):
             "elements": [{"tag": "markdown", "content": content}]
         }
     }
-    requests.post(FEISHU_WEBHOOK, json=payload)
+    try:
+        res = requests.post(FEISHU_WEBHOOK, json=payload, timeout=10)
+        res.raise_for_status()
+        result = res.json()
+        if result.get("code") != 0:
+            print(f"飞书返回错误: {result.get('msg')}")
+        else:
+            print(f"已成功推送至飞书: {title}")
+    except Exception as e:
+        print(f"推送飞书失败: {str(e)}")
 
 if __name__ == "__main__":
     if not FEISHU_WEBHOOK or not DEEPSEEK_API_KEY:
@@ -98,4 +111,4 @@ if __name__ == "__main__":
             content = get_ai_fortune(person[0], person[1], info)
             send_to_feishu(f"🌟 {person[0]}专属·每日能量指南", content, person[2])
         
-        print(f"Daily Push Completed via DeepSeek: {info['date']}")
+        print(f"Daily Push Task Completed: {info['date']}")
