@@ -20,7 +20,7 @@ ZHI = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "�
 def get_tomorrow_info():
     # 转换为北京时间并获取明天日期
     now = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
-    tomorrow = now + datetime.timedelta(days=1)
+    tomorrow = now + datetime.timedelta(days=0)
     
     day = sxtwl.fromSolar(tomorrow.year, tomorrow.month, tomorrow.day)
     gz_day_idx = day.getDayGZ()
