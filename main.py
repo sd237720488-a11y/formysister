@@ -16,6 +16,8 @@ client = OpenAI(
 
 GAN = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"]
 ZHI = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
+# 定义星期映射
+WEEK_MAP = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
 
 def get_tomorrow_info():
     # 转换为北京时间并获取【明天】日期
@@ -24,8 +26,14 @@ def get_tomorrow_info():
     
     day = sxtwl.fromSolar(tomorrow.year, tomorrow.month, tomorrow.day)
     gz_day_idx = day.getDayGZ()
+    
+    # 获取星期几
+    weekday = WEEK_MAP[tomorrow.weekday()]
+    
     return {
         "date": tomorrow.strftime("%Y-%m-%d"),
+        "display_date": tomorrow.strftime("%m月%d日"),
+        "weekday": weekday,
         "gz_day": GAN[gz_day_idx.tg] + ZHI[gz_day_idx.dz],
         "tg": GAN[gz_day_idx.tg],
         "dz": ZHI[gz_day_idx.dz]
@@ -45,19 +53,19 @@ def get_ai_fortune(name, profile, target_info):
 3. 现代象义：区分“被动破财”与“主动消费”。壬水日主往往在水旺之日更具自信和豪爽气场。
 
 输出格式要求 (文字要具备穿透力，拒绝套话):
-- 📅 **明天是 {target_info['date']} · {target_info['gz_day']} 日**
-- **💰 财运：** (分析是“财来找我”还是“我去找财”，是主动消费还是意外损耗)
-- **🤝 人际：** (分析比劫是“争夺”还是“陪伴/助力”，官杀是“压力”还是“动力”)
-- **😊 心情：** (结合调候用神。分析神智是“郁结”还是“舒展”。注意区分“花钱后的爽快”与“财损后的郁闷”)
-- ---
-- **🔮 能量天气预报：**
+ 📅 **明天是 {target_info['date']} · {target_info['gz_day']} 日**
+ **💰 财运：** (分析是“财来找我”还是“我去找财”，是主动消费还是意外损耗)
+ **🤝 人际：** (分析比劫是“争夺”还是“陪伴/助力”，官杀是“压力”还是“动力”)
+ **😊 心情：** (结合调候用神。分析神智是“郁结”还是“舒展”。注意区分“花钱后的爽快”与“财损后的郁闷”)
+ ---
+ **🔮 能量天气预报：**
     (用2-3句优美的短句描述核心感受，并点出明日干支对命盘的关键影响)
-    - **🚫 禁忌清单 (别做！)：**
+     **🚫 禁忌清单 (别做！)：**
     (给出2条精炼的避坑建议)
-    - **✅ 转运清单 (去做！)：**
+     **✅ 转运清单 (去做！)：**
     (1) [具体行动建议]
     (2) **明日穿搭建议**：[幸运色] + [风格建议] (原理：结合五行喜忌)
-    - **💌 悄悄话：**
+     **💌 悄悄话：**
     (一句简短有力的鼓励)
 
 注意: 严禁使用 ### 标题，必须使用 **粗体文字** 作为标题。"""
@@ -89,7 +97,7 @@ def send_to_feishu(title, content, color="orange"):
 
 if __name__ == "__main__":
     if FEISHU_WEBHOOK and DEEPSEEK_API_KEY:
-        # 恢复为获取明天信息
+        # 获取明天信息
         info = get_tomorrow_info()
         
         sister_profile = """
@@ -106,4 +114,6 @@ if __name__ == "__main__":
         targets = [("姐姐", sister_profile, "orange"), ("妹妹", queen_profile, "purple")]
         for name, profile, color in targets:
             content = get_ai_fortune(name, profile, info)
-            send_to_feishu(f"🌟 {name}专属·明日能量指南", content, color)
+            # 修改点：动态生成标题，包含日期和星期
+            custom_title = f"🌟 {info['display_date']} ({info['weekday']}) | {name}专属能量指南"
+            send_to_feishu(custom_title, content, color)
