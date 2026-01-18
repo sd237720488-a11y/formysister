@@ -17,13 +17,15 @@ client = OpenAI(
 GAN = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"]
 ZHI = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
 
-def get_today_info():
-    # 转换为北京时间并获取【今天】日期，用于回测模式
+def get_tomorrow_info():
+    # 转换为北京时间并获取【明天】日期
     now = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
-    day = sxtwl.fromSolar(now.year, now.month, now.day)
+    tomorrow = now + datetime.timedelta(days=1)
+    
+    day = sxtwl.fromSolar(tomorrow.year, tomorrow.month, tomorrow.day)
     gz_day_idx = day.getDayGZ()
     return {
-        "date": now.strftime("%Y-%m-%d"),
+        "date": tomorrow.strftime("%Y-%m-%d"),
         "gz_day": GAN[gz_day_idx.tg] + ZHI[gz_day_idx.dz],
         "tg": GAN[gz_day_idx.tg],
         "dz": ZHI[gz_day_idx.dz]
@@ -35,7 +37,7 @@ def get_ai_fortune(name, profile, target_info):
 请对以下用户进行深度穿透分析。
 
 用户命盘 ({name}):{profile}
-今日干支: {target_info['date']} ({target_info['gz_day']}日)
+明日干支: {target_info['date']} ({target_info['gz_day']}日)
 
 【导师分析指令】：
 1. 辩证看生克：不要看到“比劫夺财”就断定心情不好。若原局财重身轻，比劫流日反而是“助身担财”，表现为“主动慷慨消费、社交愉悦、掌控感增强”。
@@ -43,12 +45,12 @@ def get_ai_fortune(name, profile, target_info):
 3. 现代象义：区分“被动破财”与“主动消费”。壬水日主往往在水旺之日更具自信和豪爽气场。
 
 输出格式要求 (文字要具备穿透力，拒绝套话):
-- 📅 **今天是 {target_info['date']} · {target_info['gz_day']} 日**
+- 📅 **明天是 {target_info['date']} · {target_info['gz_day']} 日**
 - **💰 财运：** (分析是“财来找我”还是“我去找财”，是主动消费还是意外损耗)
 - **🤝 人际：** (分析比劫是“争夺”还是“陪伴/助力”，官杀是“压力”还是“动力”)
 - **😊 心情：** (结合调候用神。分析神智是“郁结”还是“舒展”。注意区分“花钱后的爽快”与“财损后的郁闷”)
 - ---
- - **🔮 能量天气预报：**
+- **🔮 能量天气预报：**
     (用2-3句优美的短句描述核心感受，并点出明日干支对命盘的关键影响)
     - **🚫 禁忌清单 (别做！)：**
     (给出2条精炼的避坑建议)
@@ -87,7 +89,8 @@ def send_to_feishu(title, content, color="orange"):
 
 if __name__ == "__main__":
     if FEISHU_WEBHOOK and DEEPSEEK_API_KEY:
-        info = get_today_info()
+        # 恢复为获取明天信息
+        info = get_tomorrow_info()
         
         sister_profile = """
     - 格局: 偏印当令，壬水身强，驿马逢冲（寅申）。
@@ -103,4 +106,4 @@ if __name__ == "__main__":
         targets = [("姐姐", sister_profile, "orange"), ("妹妹", queen_profile, "purple")]
         for name, profile, color in targets:
             content = get_ai_fortune(name, profile, info)
-            send_to_feishu(f"🌟 {name}专属·今日能量指南", content, color)
+            send_to_feishu(f"🌟 {name}专属·明日能量指南", content, color)
