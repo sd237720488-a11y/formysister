@@ -32,25 +32,24 @@ def get_tomorrow_info():
     }
 
 def get_ai_fortune(name, profile, target_info):
-    # 核心 Prompt：采用了更直观的状态标签系统
-    prompt = f"""你是一位精通八字命理的导航员。请根据以下用户命盘和明天的干支，生成一份【{name}专属·明日能量指南】。
+    # 核心 Prompt：融入梁湘润、盲派、子平、陆致极理论体系
+    prompt = f"""你是一位综合了梁湘润（禄命/调候）、盲派（取象/干支互动）、子平（格用/生克）及陆致极（现代命理视角）理论精髓的命理导师。
+请根据以下用户命盘和明天的干支，进行深度穿透分析，生成【{name}专属·明日能量指南】。
+
 用户命盘 ({name}):{profile}
 目标日期: {target_info['date']} ({target_info['gz_day']}日)
 
-要求:
-1. 风格: 中正、直觉、精炼。
-2. 状态定义要求 (请根据干支生克，从以下词库中选择或自行生发最精准的描述):
-    - **财运状态**：例如 [大赚！、小赚、稳守、防止破财！！、开销略大] 等。
-    - **人际状态**：例如 [有助力人缘！！、平静如水、谨防口舌、小人抢夺！！、贵人暗助] 等。
-    - **心情状态**：例如 [纠结、平静、特别好有力量、略显疲惫、灵感爆发] 等。
+分析原则：
+1. 理论支撑：结合流日干支对原局的刑冲破害、神煞变换（如驿马、禄神、羊刃）、纳音气场进行推演。
+2. 真实推演：不要使用固定的形容词，要根据“干支真实作用关系”给出具体的预测。
 
-3. 输出格式:
-    - 📅 **明天是 {target_info['date']} · {target_info['gz_day']} 日**
-    - **💰 财运：[选定的状态词]**
-    - **🤝 人际：[选定的状态词]**
-    - **😊 心情：[选定的状态词]**
-    - ---
-     - **🔮 能量天气预报：**
+输出格式:
+- 📅 **明天是 {target_info['date']} · {target_info['gz_day']} 日**
+- **💰 财运：** (基于财星、食伤与日主的动态关系，给出具体的财务气场描述)
+- **🤝 人际：** (基于官杀、比劫的制化关系，给出人情往来的真实反馈)
+- **😊 心情：** (基于调候用神、印星虚实，描述神智与心理的真实波动)
+- ---
+- **🔮 能量天气预报：**
     (用2-3句优美的短句描述核心感受，并点出明日干支对命盘的关键影响)
     - **🚫 禁忌清单 (别做！)：**
     (给出2条精炼的避坑建议)
@@ -64,7 +63,7 @@ def get_ai_fortune(name, profile, target_info):
     try:
         response = client.chat.completions.create(
             model="deepseek-chat", 
-            messages=[{"role": "system", "content": "你是一位精通命理、言辞中正且直觉敏锐的专业导师。"},
+            messages=[{"role": "system", "content": "你是一位命理造诣极深、融合各家所长、言辞犀利中正的专业导师。"},
                       {"role": "user", "content": prompt}]
         )
         return response.choices[0].message.content
@@ -95,9 +94,8 @@ def send_to_feishu(title, content, color="orange"):
 
 if __name__ == "__main__":
     if not FEISHU_WEBHOOK or not DEEPSEEK_API_KEY:
-        print("Error: 环境变量缺失，请检查 GitHub Secrets 配置。")
+        print("Error: 环境变量缺失")
     else:
-        # 获取明天信息
         info = get_tomorrow_info()
         
         # 姐姐命盘配置
@@ -116,14 +114,15 @@ if __name__ == "__main__":
     - 能量特点: 灵感极强且才华横溢，但官杀刑伤易带来潜在压力与完美主义倾向。
     """
         
-        # 生成并推送姐姐的指南
-        print("正在生成姐姐的明日指南...")
-        sister_content = get_ai_fortune("姐姐", sister_profile, info)
-        send_to_feishu("🌟 姐姐专属·明日能量指南", sister_content, "orange")
+        # 生成并推送
+        targets = [
+            ("姐姐", sister_profile, "orange"),
+            ("妹妹", queen_profile, "purple")
+        ]
         
-        # 生成并推送妹妹的指南
-        print("正在生成妹妹的明日指南...")
-        queen_content = get_ai_fortune("妹妹", queen_profile, info)
-        send_to_feishu("👑 妹妹专属·明日能量指南", queen_content, "purple")
+        for name, profile, color in targets:
+            print(f"正在为 {name} 进行深度命理推演...")
+            content = get_ai_fortune(name, profile, info)
+            send_to_feishu(f"🌟 {name}专属·明日能量指南", content, color)
         
         print(f"任务执行完毕，已发送明日 ({info['date']}) 的能量指南。")
