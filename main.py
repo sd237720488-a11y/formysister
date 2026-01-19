@@ -112,7 +112,7 @@ def send_to_feishu(title, content, color="orange"):
 if __name__ == "__main__":
     if FEISHU_WEBHOOK and DEEPSEEK_API_KEY:
         # offset = 1: 明天; 0: 今天; -1: 昨天
-        offset = -1 
+        offset = 0 
         
         info = get_target_info(offset=offset)
         
