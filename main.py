@@ -119,15 +119,16 @@ def get_ai_fortune(name, profile, target_info):
 
 【任务指令】：
 1. **严格对齐**：必须以【官方判词】的等级和建议为核心，进行生活化解读。
-2. **极简主义**：拒绝废话，每项1句话。
-3. **物理钩子**：必须包含一个具体的物理实物。
+2. **当日总结置顶**：必须将核心建议放在输出的最开始。
+3. **极简主义**：拒绝废话，每项1句话。
+4. **物理钩子**：必须包含一个具体的物理实物。
 
 【输出模板】：
-📅 **{day_label}是 {target_info['date']} ({gz}日)**
-评分：【{logic_from_db['Level']}】 | 标签：#{logic_from_db['Tag']}#
-
 💡 **当日总结**：
 - {logic_from_db['Advice']}
+
+📅 **{day_label}是 {target_info['date']} ({gz}日)**
+评分：【{logic_from_db['Level']}】 | 标签：#{logic_from_db['Tag']}#
 
 ---
 **💰 财运：** [结合官方建议的1句话流向]
@@ -164,7 +165,7 @@ def send_to_feishu(title, content, color="orange"):
 if __name__ == "__main__":
     if FEISHU_WEBHOOK and DEEPSEEK_API_KEY:
         # 修改这里：循环验证前4天到明天（共6天：-4, -3, -2, -1, 0, 1）
-        for offset in range(-3, 0):
+        for offset in range(0):
             info = get_target_info(offset=offset)
             
             profiles = [
@@ -174,6 +175,7 @@ if __name__ == "__main__":
             
             for name, profile, color in profiles:
                 content = get_ai_fortune(name, profile, info)
-                # 在标题里标注是哪一天的验证
+                # 标题修改：增加日期和周几
                 prefix = f"【验证D{offset}】" if offset != 1 else "【明日预告】"
-                send_to_feishu(f"{prefix}🌟 {info['display_date']} | {name}", content, color)
+                title_text = f"{prefix} 🌟 {info['display_date']} ({info['weekday']}) | {name}"
+                send_to_feishu(title_text, content, color)
