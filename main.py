@@ -105,7 +105,7 @@ def send_to_feishu(title, content, color="orange"):
 
 if __name__ == "__main__":
     if FEISHU_WEBHOOK and DEEPSEEK_API_KEY:
-        offset = -3 
+        offset = -1 
         info = get_target_info(offset=offset)
         
         sister_profile = {
