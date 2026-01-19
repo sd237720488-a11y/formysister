@@ -18,37 +18,48 @@ GAN = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"]
 ZHI = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
 WEEK_MAP = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
 
-def get_today_info():
-    """获取【今天】的全方位干支信息，用于验证准确度"""
-    # 转换为北京时间
+def get_target_info(offset=1):
+    """
+    获取目标日期的全方位干支信息
+    offset=1: 明天 (默认推送使用)
+    offset=0: 今天 (验证使用)
+    offset=-1: 昨天 (验证使用)
+    """
+    # 转换为北京时间并应用偏移量
     now = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
+    target_date = now + datetime.timedelta(days=offset)
     
-    day = sxtwl.fromSolar(now.year, now.month, now.day)
+    day = sxtwl.fromSolar(target_date.year, target_date.month, target_date.day)
     
     gz_year = GAN[day.getYearGZ().tg] + ZHI[day.getYearGZ().dz]
     gz_month = GAN[day.getMonthGZ().tg] + ZHI[day.getMonthGZ().dz]
     gz_day = GAN[day.getDayGZ().tg] + ZHI[day.getDayGZ().dz]
     
     return {
-        "date": now.strftime("%Y-%m-%d"),
-        "display_date": now.strftime("%m月%d日"),
-        "weekday": WEEK_MAP[now.weekday()],
+        "date": target_date.strftime("%Y-%m-%d"),
+        "display_date": target_date.strftime("%m月%d日"),
+        "weekday": WEEK_MAP[target_date.weekday()],
         "gz_year": gz_year,
         "gz_month": gz_month,
-        "gz_day": gz_day
+        "gz_day": gz_day,
+        "is_today": offset == 0,
+        "is_past": offset < 0
     }
 
 def get_ai_fortune(name, profile, target_info):
     """
     全息扫描协议极简版：强制短句输出，直击痛点。
     """
+    # 根据日期状态动态调整 Prompt 称呼
+    day_label = "今日" if target_info['is_today'] else ("历史" if target_info['is_past'] else "明日")
+    
     prompt = f"""你是一位精通子平、盲派逻辑的顶级导师。
-请对用户 ({name}) 进行今日推演。
+请对用户 ({name}) 进行{day_label}推演。
 
 【时空全景】：
 - 当前大运：{profile['current_luck']}
 - 宏观流转：{target_info['gz_year']}年 {target_info['gz_month']}月
-- 微观切片：今日 {target_info['gz_day']}日
+- 微观切片：目标日期 {target_info['gz_day']}日
 
 【用户原局】：
 {profile['bazi_summary']}
@@ -58,13 +69,13 @@ def get_ai_fortune(name, profile, target_info):
 2. **极简输出控制**：严禁废话，严禁分析过程。**每个版块（财运、人际、心情）只允许输出不超过2句话的精准结论**。
 
 【输出格式要求】：
- 📅 **今天是 {target_info['date']} ({target_info['gz_day']}日)**
+ 📅 **{day_label}是 {target_info['date']} ({target_info['gz_day']}日)**
  **💰 财运：** [直接给结论，描述损益情况]
  **🤝 人际：** [直接给结论，指出社交真相]
  **😊 心情：** [直接给结论，点破情绪根源]
  ---
  **🔮 能量天气预报：**
-    [用一句最犀利的话点破今日核心气场真相]
+    [用一句最犀利的话点破该日核心气场真相]
  **🚫 禁忌清单：**
     (1) [动作] (2) [动作]
  **✅ 转运清单：**
@@ -100,7 +111,14 @@ def send_to_feishu(title, content, color="orange"):
 
 if __name__ == "__main__":
     if FEISHU_WEBHOOK and DEEPSEEK_API_KEY:
-        info = get_today_info()
+        # --- 验证开关 ---
+        # offset = 1: 获取明天 (正常推送)
+        # offset = 0: 获取今天 (验证)
+        # offset = -1: 获取昨天 (验证)
+        # offset = -2: 获取前天 (验证)
+        offset = -1 
+        
+        info = get_target_info(offset=offset)
         
         sister_profile = {
             "current_luck": "2021-2030走【乙巳】大运；2031-2040走【甲辰】大运",
@@ -115,5 +133,6 @@ if __name__ == "__main__":
         targets = [("姐姐", sister_profile, "orange"), ("妹妹", queen_profile, "purple")]
         for name, profile, color in targets:
             content = get_ai_fortune(name, profile, info)
-            custom_title = f"🌟 {info['display_date']} ({info['weekday']}) | {name}专属能量指南"
+            day_type = "验证" if offset <= 0 else "预报"
+            custom_title = f"🌟 {info['display_date']} ({info['weekday']}) | {name}专属能量{day_type}"
             send_to_feishu(custom_title, content, color)
