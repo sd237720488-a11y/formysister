@@ -82,6 +82,7 @@ DAYS_DATABASE = {
 }
 
 def get_target_info(offset=1):
+    # 获取当前北京时间
     now = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
     target_date = now + datetime.timedelta(days=offset)
     day = sxtwl.fromSolar(target_date.year, target_date.month, target_date.day)
@@ -124,17 +125,17 @@ def get_ai_fortune(name, profile, target_info):
 4. **物理钩子**：必须包含一个具体的物理实物。
 
 【输出模板】：
-💡 **当日总结**：
-- {logic_from_db['Advice']}
-
 📅 **{day_label}是 {target_info['date']} ({gz}日)**
+💡 **当日总结**： {logic_from_db['Advice']}
+
+
 评分：【{logic_from_db['Level']}】 | 标签：#{logic_from_db['Tag']}#
 
 ---
 **💰 财运：** [结合官方建议的1句话流向]
 **🤝 人际：** [1句话具体人物特征]
 **😊 心情：** [结合官方建议的1句话心理表现]
-**🔮 能量预报：** {logic_from_db['Advice']}
+
 **🚫 避雷清单：** (1) [动作] (2) [场景]
 **✅ 转运清单：** (1) [动作] (2) **穿搭建议**：[具体材质/色系]
 **💌 悄悄话：** [1句话贴士]
@@ -164,18 +165,16 @@ def send_to_feishu(title, content, color="orange"):
 
 if __name__ == "__main__":
     if FEISHU_WEBHOOK and DEEPSEEK_API_KEY:
-        # 修改这里：循环验证前4天到明天（共6天：-4, -3, -2, -1, 0, 1）
-        for offset in range(0, 1):
-            info = get_target_info(offset=offset)
-            
-            profiles = [
-                ("姐姐", {}, "orange"),
-                ("妹妹", {}, "purple")
-            ]
-            
-            for name, profile, color in profiles:
-                content = get_ai_fortune(name, profile, info)
-                # 标题修改：增加日期和周几
-                prefix = f"【验证D{offset}】" if offset != 1 else "【明日预告】"
-                title_text = f"{prefix} 🌟 {info['display_date']} ({info['weekday']}) | {name}"
-                send_to_feishu(title_text, content, color)
+        # 修改点：固定为 offset=1，即每天运行都只推演“明天”的运势
+        info = get_target_info(offset=1)
+        
+        profiles = [
+            ("姐姐", {}, "orange"),
+            ("妹妹", {}, "purple")
+        ]
+        
+        for name, profile, color in profiles:
+            content = get_ai_fortune(name, profile, info)
+            # 统一前缀为“明日预告”
+            title_text = f"【明日预告】 🌟 {info['display_date']} ({info['weekday']}) | {name}"
+            send_to_feishu(title_text, content, color)
