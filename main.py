@@ -8,7 +8,6 @@ from openai import OpenAI
 FEISHU_WEBHOOK = os.getenv("FEISHU_WEBHOOK", "").strip().strip('"').strip("'")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY")
 
-# 初始化 DeepSeek 客户端
 client = OpenAI(
     api_key=DEEPSEEK_API_KEY,
     base_url="https://api.deepseek.com"
@@ -19,90 +18,81 @@ ZHI = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "�
 WEEK_MAP = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
 
 def get_target_info(offset=1):
-    """
-    获取目标日期的全方位干支信息
-    """
     now = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
     target_date = now + datetime.timedelta(days=offset)
     day = sxtwl.fromSolar(target_date.year, target_date.month, target_date.day)
-    
-    gz_year = GAN[day.getYearGZ().tg] + ZHI[day.getYearGZ().dz]
-    gz_month = GAN[day.getMonthGZ().tg] + ZHI[day.getMonthGZ().dz]
     gz_day_str = GAN[day.getDayGZ().tg] + ZHI[day.getDayGZ().dz]
-    
     return {
         "date": target_date.strftime("%Y-%m-%d"),
         "display_date": target_date.strftime("%m月%d日"),
         "weekday": WEEK_MAP[target_date.weekday()],
-        "gz_year": gz_year,
-        "gz_month": gz_month,
         "gz_day": gz_day_str,
-        "is_today": offset == 0,
-        "is_past": offset < 0
+        "is_today": offset == 0
     }
 
 def get_ai_fortune(name, profile, target_info):
-    """
-    精准具象推演协议：1句话表达，拒绝废话。
-    """
-    day_label = "今日" if target_info['is_today'] else ("历史" if target_info['is_past'] else "明日")
+    day_label = "今日" if target_info['is_today'] else "明日"
     
+    # 注入隐藏逻辑补丁
     if name == "姐姐":
-        role_style = "温柔疗愈型知心大姐姐。语气极简，多安慰鼓励。"
-        persona_logic = "针对枭神夺食，重点关注情绪安抚，将忌神转化为‘休息的借口’。"
+        role_style = "温柔疗愈型知心大姐姐，极简表达。"
+        logic_patch = """
+        - 补充逻辑：警惕‘金多水浊’。若流日金旺（申/酉/丑），不仅是累，更是‘枭神夺食’引发的沟通误会或自我怀疑。
+        - 亥水预警：申亥穿是‘内耗’，重点提醒不要在洗手间或阴冷处发呆。
+        """
     else: # 妹妹
-        role_style = "搞钱军师型。语气极简，直给利弊。"
-        persona_logic = "针对从财格，重点关注利益增减，对湿土烂人进行零容忍预警。"
+        role_style = "搞钱军师型，犀利直接，极简表达。"
+        logic_patch = """
+        - 补充逻辑：警惕‘湿木不生火’（如寅亥合）。若见亥水，不是简单的克，是‘羁绊’。会让你的‘从财格’使不上劲，变成功亏一篑。
+        - 湿土预警：辰/丑日是‘晦火’，代表项目被搁置或遇到‘软钉子’。
+        """
 
     prompt = f"""角色：{role_style}
-请对 ({name}) 进行{day_label}推演。
+推演对象：({name}) | 目标日期：{target_info['gz_day']}
 
-【核心档案】：{profile['bazi_summary']}
-【目标日期】：{target_info['gz_day']}日
+【底层算法】：
+{profile['bazi_summary']}
+{logic_patch}
 
-【硬性指令】：
-1. **极简表达**：每个版块严格执行【1句话精准表达】，禁止任何修饰词或废话。
-2. **绝对具象**：必须指出1个具体的物、1个具体的人或1个具体的物理触发点。
-3. **收支总结**：在‘能量收支看板’中，必须明确钱是‘变多/变少/持平’，心情是‘变好/变坏/平静’。
+【神准判定指令】：
+1. **穿透地支真相**：判断当日地支({target_info['gz_day'][1]})与原局的冲、穿、合、破。
+2. **拒绝空洞**：必须包含一个‘物理钩子’（如：某个特定颜色的图标、手机掉电快、某个姓氏的人）。
+3. **收支看板**：明确财富和心情的涨跌方向。
 
 【输出模板】：
 📅 **{day_label}是 {target_info['date']} ({target_info['gz_day']}日)**
 
 📊 **能量收支看板**：
-- 💰 财富：[变多/变少/持平] · [1句话原因]
-- 😊 心情：[变好/变坏/平静] · [1句话原因]
+- 💰 财富：[变多/变少/持平] · [原因]
+- 😊 心情：[变好/变坏/平静] · [诱因]
 
 ---
-**💰 财运：** [1句话点破具体金钱流向或消费场景]
-**🤝 人际：** [1句话点破遇到的具体人物特征]
-**😊 心情：** [1句话点破具体的情绪诱因]
-**🔮 能量预报：** [1句话点破今日真相]
+**💰 财运：** [1句话具体流向。忌神日需写明是被谁‘割韭菜’]
+**🤝 人际：** [1句话人物特征。喜神日写明谁是‘财神’]
+**😊 心情：** [1句话物理诱因。点破是因为哪个字导致的心理变化]
+**🔮 能量预报：** [1句话真相]
 **🚫 避雷清单：** (1) [具体动作] (2) [具体物件]
 **✅ 转运清单：** (1) [具体动作] (2) **穿搭建议**：[具体材质/色系]
-**💌 悄悄话：** [1句话专属贴士]
+**💌 悄悄话：** [1句话贴士]
 
-注意: 严禁使用 ### 标题。"""
+注意: 禁止使用 ### 标题。"""
 
     try:
         response = client.chat.completions.create(
             model="deepseek-chat", 
-            messages=[{"role": "system", "content": f"你是一位极简主义的命理导师。风格：{role_style}"},
+            messages=[{"role": "system", "content": f"你是一位精通地支细节、拒绝废话的命理大师。{role_style}"},
                       {"role": "user", "content": prompt}]
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"AI 故障: {str(e)}"
+        return f"系统开小差了: {str(e)}"
 
 def send_to_feishu(title, content, color="orange"):
-    if not FEISHU_WEBHOOK.startswith("http"):
-        return
+    if not FEISHU_WEBHOOK.startswith("http"): return
     payload = {
         "msg_type": "interactive",
         "card": {
-            "header": {
-                "title": {"tag": "plain_text", "content": title},
-                "template": color
-            },
+            "header": {"title": {"tag": "plain_text", "content": title}, "template": color},
             "elements": [{"tag": "markdown", "content": content}]
         }
     }
@@ -113,19 +103,11 @@ if __name__ == "__main__":
         offset = -3 
         info = get_target_info(offset=offset)
         
-        sister_profile = {
-            "current_luck": "2021-2030走【乙巳】大运",
-            "bazi_summary": "1992壬申：身强水旺，枭神夺食。喜木火，忌金水。"
-        }
+        profiles = [
+            ("姐姐", {"bazi_summary": "1992壬申：身强水旺，忌金水，怕申亥穿。喜木火，怕枭神夺食。"}, "orange"),
+            ("妹妹", {"bazi_summary": "1997丙午：从财格火局，忌金水湿土，怕亥合熄火。喜火土，怕湿木不生火。"}, "purple")
+        ]
         
-        queen_profile = {
-            "current_luck": "2021-2030走【癸丑】大运",
-            "bazi_summary": "1997丙午：从财格火局。喜火土，忌金水。"
-        }
-        
-        targets = [("姐姐", sister_profile, "orange"), ("妹妹", queen_profile, "purple")]
-        for name, profile, color in targets:
+        for name, profile, color in profiles:
             content = get_ai_fortune(name, profile, info)
-            day_type = "真相" if offset <= 0 else "预言"
-            custom_title = f"🌟 {info['display_date']} ({info['weekday']}) | {name}专属{day_type}"
-            send_to_feishu(custom_title, content, color)
+            send_to_feishu(f"🌟 {info['display_date']} | {name}专属推演", content, color)
