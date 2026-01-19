@@ -119,7 +119,7 @@ if __name__ == "__main__":
         # offset = 0: 获取今天 (验证)
         # offset = -1: 获取昨天 (验证)
         # offset = -2: 获取前天 (验证)
-        offset = 1 
+        offset = 0 
         
         info = get_target_info(offset=offset)
         
