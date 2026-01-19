@@ -126,9 +126,8 @@ def get_ai_fortune(name, profile, target_info):
 📅 **{day_label}是 {target_info['date']} ({gz}日)**
 评分：【{logic_from_db['Level']}】 | 标签：#{logic_from_db['Tag']}#
 
-📊 **能量收支看板**：
-- 💰 财富：[变多/变少/持平] · [原因]
-- 😊 心情：[变好/变坏/平静] · [诱因]
+💡 **当日总结**：
+- {logic_from_db['Advice']}
 
 ---
 **💰 财运：** [结合官方建议的1句话流向]
