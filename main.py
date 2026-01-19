@@ -33,31 +33,33 @@ def get_target_info(offset=1):
 def get_ai_fortune(name, profile, target_info):
     day_label = "今日" if target_info['is_today'] else "明日"
     
-    # 注入隐藏逻辑补丁
+    # 终极逻辑补丁：处理阴晴圆缺、天干盖头、伏吟等细节
     if name == "姐姐":
         role_style = "温柔疗愈型知心大姐姐，极简表达。"
-        logic_patch = """
-        - 补充逻辑：警惕‘金多水浊’。若流日金旺（申/酉/丑），不仅是累，更是‘枭神夺食’引发的沟通误会或自我怀疑。
-        - 亥水预警：申亥穿是‘内耗’，重点提醒不要在洗手间或阴冷处发呆。
+        logic_patch = f"""
+        - 关键补丁：判断‘枭印化水’。若流日天干见金、地支见水，代表‘想得美但做得累’。
+        - 出口逻辑：识别‘甲/乙木’。木能泄水，若见木，结论必须是‘表达出来、写下来就会好’。
+        - 关系：申辰合、申子辰三合，代表社交圈的扩大或资源的重新整合。
         """
     else: # 妹妹
         role_style = "搞钱军师型，犀利直接，极简表达。"
-        logic_patch = """
-        - 补充逻辑：警惕‘湿木不生火’（如寅亥合）。若见亥水，不是简单的克，是‘羁绊’。会让你的‘从财格’使不上劲，变成功亏一篑。
-        - 湿土预警：辰/丑日是‘晦火’，代表项目被搁置或遇到‘软钉子’。
+        logic_patch = f"""
+        - 关键补丁：区分‘壬水’和‘癸水’。壬水日可‘借势搞钱’，癸水日必‘阴郁闭关’（乌云遮日）。
+        - 库门逻辑：识别‘戌/辰’。辰是晦火，戌是暖炉。若流日地支与原局地支伏吟（再见午火），代表‘过度亢奋导致决策失误’。
+        - 逻辑：喜火土，忌湿气。
         """
 
     prompt = f"""角色：{role_style}
 推演对象：({name}) | 目标日期：{target_info['gz_day']}
 
-【底层算法】：
+【底层算法核心】：
 {profile['bazi_summary']}
 {logic_patch}
 
 【神准判定指令】：
-1. **穿透地支真相**：判断当日地支({target_info['gz_day'][1]})与原局的冲、穿、合、破。
-2. **拒绝空洞**：必须包含一个‘物理钩子’（如：某个特定颜色的图标、手机掉电快、某个姓氏的人）。
-3. **收支看板**：明确财富和心情的涨跌方向。
+1. **阴阳细分**：必须区分壬癸水、辰戌土的细微差别。
+2. **伏吟/合化判断**：若流日地支与日支相同，断为‘原地踏步’。若地支合化，断为‘性质转换’。
+3. **物理钩子**：必须锁定一个生活中的具体实物（如：颜色异常的包装、某个特定的App通知、丢失的钥匙）。
 
 【输出模板】：
 📅 **{day_label}是 {target_info['date']} ({target_info['gz_day']}日)**
@@ -67,25 +69,25 @@ def get_ai_fortune(name, profile, target_info):
 - 😊 心情：[变好/变坏/平静] · [诱因]
 
 ---
-**💰 财运：** [1句话具体流向。忌神日需写明是被谁‘割韭菜’]
-**🤝 人际：** [1句话人物特征。喜神日写明谁是‘财神’]
-**😊 心情：** [1句话物理诱因。点破是因为哪个字导致的心理变化]
+**💰 财运：** [1句话具体流向。若天干克地支（如戊子），写明‘虎头蛇尾’的表现]
+**🤝 人际：** [1句话具体人物。若伏吟，写明是哪个‘老熟人’]
+**😊 心情：** [1句话物理诱因。点破是因为哪个字导致的光明或阴影]
 **🔮 能量预报：** [1句话真相]
-**🚫 避雷清单：** (1) [具体动作] (2) [具体物件]
-**✅ 转运清单：** (1) [具体动作] (2) **穿搭建议**：[具体材质/色系]
-**💌 悄悄话：** [1句话贴士]
+**🚫 避雷清单：** (1) [具体动作] (2) [具体场景]
+**✅ 转运清单：** (1) [具体动作] (2) **穿搭建议**：[材质/色系]
+**💌 悄悄话：** [1句话专属贴士]
 
 注意: 禁止使用 ### 标题。"""
 
     try:
         response = client.chat.completions.create(
             model="deepseek-chat", 
-            messages=[{"role": "system", "content": f"你是一位精通地支细节、拒绝废话的命理大师。{role_style}"},
+            messages=[{"role": "system", "content": f"你是一位能看透命运细枝末节、拒绝套话的极简主义导师。{role_style}"},
                       {"role": "user", "content": prompt}]
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"系统开小差了: {str(e)}"
+        return f"算法正在对抗由于地支冲克带来的干扰: {str(e)}"
 
 def send_to_feishu(title, content, color="orange"):
     if not FEISHU_WEBHOOK.startswith("http"): return
@@ -100,12 +102,12 @@ def send_to_feishu(title, content, color="orange"):
 
 if __name__ == "__main__":
     if FEISHU_WEBHOOK and DEEPSEEK_API_KEY:
-        offset = -3 
+        offset = -1 
         info = get_target_info(offset=offset)
         
         profiles = [
-            ("姐姐", {"bazi_summary": "1992壬申：身强水旺，忌金水，怕申亥穿。喜木火，怕枭神夺食。"}, "orange"),
-            ("妹妹", {"bazi_summary": "1997丙午：从财格火局，忌金水湿土，怕亥合熄火。喜火土，怕湿木不生火。"}, "purple")
+            ("姐姐", {"bazi_summary": "1992壬申：身强水旺，忌金水。怕申亥穿。喜木火，怕枭神夺食。"}, "orange"),
+            ("妹妹", {"bazi_summary": "1997丙午：从财格火局。忌癸水（遮光）、湿土（辰/丑）。喜火土（丙/丁/戌）。"}, "purple")
         ]
         
         for name, profile, color in profiles:
