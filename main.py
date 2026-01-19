@@ -165,7 +165,7 @@ def send_to_feishu(title, content, color="orange"):
 if __name__ == "__main__":
     if FEISHU_WEBHOOK and DEEPSEEK_API_KEY:
         # 修改这里：循环验证前4天到明天（共6天：-4, -3, -2, -1, 0, 1）
-        for offset in range(0):
+        for offset in range[0]:
             info = get_target_info(offset=offset)
             
             profiles = [
