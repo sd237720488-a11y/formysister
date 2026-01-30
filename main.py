@@ -2,27 +2,28 @@ import sxtwl
 import requests
 import datetime
 import json
+import random
 
 # 配置信息
 FEISHU_WEBHOOK = "https://open.feishu.cn/open-apis/bot/v2/hook/4738fb14-a6b1-4391-a05c-2507ef5a46ff"
 
 # 姐姐的命盘信息
-# 八字: 壬申 戊申 壬午 壬寅
-# 喜用: 木 (食伤)、火 (财)、燥土 (官杀)
-# 忌神: 金 (印)、水 (比劫)、湿土 (晦火)
-
 GAN = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"]
 ZHI = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
-
 SHEN_DICT = {
     "壬": {"甲": "食神", "乙": "伤官", "丙": "偏财", "丁": "正财", "戊": "七杀", "己": "正官", "庚": "偏印", "辛": "正印", "壬": "比肩", "癸": "劫财"},
 }
 
 def get_daily_info():
-    now = datetime.datetime.now()
+    # 修正时区问题：强制使用北京时间 (UTC+8)
+    # 这样即使在 GitHub Actions (UTC) 运行，也能获取正确的日期
+    tz_beijing = datetime.timezone(datetime.timedelta(hours=8))
+    now = datetime.datetime.now(tz_beijing)
+    
+    # 获取农历/干支信息
     day = sxtwl.fromSolar(now.year, now.month, now.day)
     
-    # 获取日柱干支
+    # 获取日柱干支索引
     gz_day_idx = day.getDayGZ()
     tg_idx = gz_day_idx.tg
     dz_idx = gz_day_idx.dz
@@ -92,7 +93,6 @@ def generate_content(info):
     advices = []
     
     if tg in ["庚", "辛", "壬", "癸"] or dz in ["申", "酉", "亥", "子"]:
-        # 忌神日
         advices.append({"title": "去晒太阳/吃顿热乎的", "logic": "今日金水旺，需火来暖局，补足能量。"})
         advices.append({"title": "穿红色或绿色的衣服", "logic": "木火为喜用，视觉补能。"})
     else:
@@ -102,21 +102,20 @@ def generate_content(info):
     if "冲" in conflict or "刑" in conflict:
         taboos = ["别签合同", "别开车太快", "别和人争执"]
         advices.append({"title": "剪头发或洗牙", "logic": "以小‘血光’或‘变动’应掉地支冲刑的灾。"})
-    
-    advices.append({"title": "整理房间扔掉旧物", "logic": "去印星之忌，腾出空间给新能量。"})
+        advices.append({"title": "整理房间扔掉旧物", "logic": "去印星之忌，腾出空间给新能量。"})
 
     # 组装模板
     content = f"📅 **今天是 {info['date']} · {gz_day} 日**\n\n---\n### 🔮 能量天气预报：\n{weather}\n\n"
-    content += f"*   **天干 {tg} ({ten_god})：** {tg_desc}\n"
-    content += f"*   **地支 {dz}：** {dz_desc}\n"
-    content += f"*   **核心冲突：** {conflict}\n\n"
+    content += f"* **天干 {tg} ({ten_god})：** {tg_desc}\n"
+    content += f"* **地支 {dz}：** {dz_desc}\n"
+    content += f"* **核心冲突：** {conflict}\n\n"
     content += f"**总评：这是一个 [{summary}] 的日子。**\n\n---\n### 🚫 禁忌清单 (别做！)：\n"
     for i, t in enumerate(taboos):
         content += f"{i+1}. **{t}**\n"
     
     content += f"\n---\n### ✅ 转运清单 (去做！)：\n"
     for i, a in enumerate(advices[:3]):
-        content += f"{i+1}. **[{a['title']}]**\n    *   *原理：* {a['logic']}\n"
+        content += f"{i+1}. **[{a['title']}]**\n    * *原理：* {a['logic']}\n"
         
     content += f"\n---\n### 💌 妹妹的悄悄话：\n"
     quotes = [
@@ -125,13 +124,11 @@ def generate_content(info):
         "世界很吵，但你的内心可以很安静。加油姐姐！",
         "不管发生什么，我都在你身后支持你。"
     ]
-    import random
     content += f"({random.choice(quotes)})"
     
     return content
 
 def send_to_feishu(content):
-    # 飞书的 markdown 类型消息
     payload = {
         "msg_type": "interactive",
         "card": {
@@ -150,7 +147,6 @@ def send_to_feishu(content):
             ]
         }
     }
-    
     response = requests.post(FEISHU_WEBHOOK, json=payload)
     return response.json()
 
